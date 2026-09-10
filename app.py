@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import requests
+import joblib
 
 st.set_page_config(
     page_title="ContentPulse AI — Website Content Analyzer & Refresh Recommendation",
@@ -10,6 +10,14 @@ st.set_page_config(
 
 st.title("ContentPulse AI — Website Content Analyzer & Refresh Recommendation")
 st.subheader("AI-Powered Content Performance & Refresh Recommendation")
+
+
+@st.cache_resource
+def load_model():
+    return joblib.load("models/content_priority_model.pkl")
+
+
+model = load_model()
 
 # Load dataset
 df = pd.read_csv("data/content_data.csv")
@@ -123,10 +131,10 @@ with col3:
     )
 
 
-# FastAPI Prediction
+# Local ML Prediction
 st.write("### 🧠 ML Model Prediction")
 
-api_data = {
+model_input = pd.DataFrame([{
     "word_count": int(selected_data["word_count"]),
     "content_age_days": int(selected_data["content_age_days"]),
     "days_since_update": int(selected_data["days_since_update"]),
@@ -138,37 +146,21 @@ api_data = {
     "bounce_rate": float(selected_data["bounce_rate"]),
     "backlinks": int(selected_data["backlinks"]),
     "content_quality": float(selected_data["content_quality"])
-}
+}])
 
-try:
-    response = requests.post(
-        "http://127.0.0.1:8000/predict",
-        json=api_data,
-        timeout=5
-    )
+prediction = model.predict(model_input)[0]
+refresh_score = (
+    (selected_data["content_age_days"] / 1500) * 0.20
+    + (selected_data["days_since_update"] / 900) * 0.20
+    + (1 - selected_data["engagement_rate"]) * 0.15
+    + selected_data["bounce_rate"] * 0.15
+    + (1 - selected_data["content_quality"]) * 0.15
+    + (1 - selected_data["ctr"] / 0.25) * 0.15
+)
+refresh_score = max(0, min(1, refresh_score))
 
-    if response.status_code == 200:
-
-        result = response.json()
-
-        st.info(
-            f"FastAPI Prediction: **{result['prediction']}**"
-        )
-
-        st.write(
-            f"API Refresh Score: **{result['refresh_score']}**"
-        )
-
-    else:
-        st.error(
-            f"API request failed. Status code: {response.status_code}"
-        )
-
-except requests.exceptions.RequestException:
-    st.error(
-        "FastAPI is not running. Please start the API using: "
-        "`uvicorn api:app --reload`"
-    )
+st.info(f"Model Prediction: **{prediction}**")
+st.write(f"ML Refresh Score: **{round(refresh_score, 2)}**")
 
 
 # AI Recommendation

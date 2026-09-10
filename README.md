@@ -18,16 +18,18 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Start the prediction API:
-
-```powershell
-uvicorn api:app --reload
-```
-
-In a second terminal, start the dashboard:
+Start the Streamlit dashboard:
 
 ```powershell
 streamlit run app.py
+```
+
+The dashboard loads the trained model locally, so it does not require a separate API process.
+
+The optional FastAPI service can be started separately for API clients:
+
+```powershell
+uvicorn api:app --reload
 ```
 
 Then open the local Streamlit URL shown in the terminal.
